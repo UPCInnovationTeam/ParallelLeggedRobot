@@ -1,5 +1,6 @@
 #include "imu.h"
 #include <Arduino.h>
+#include <math.h>
 
 IMU::IMU()
 {
@@ -65,4 +66,59 @@ void IMU::readGyroData() {
   gyroData.gx = (Wire.read() << 8) | Wire.read();  // GYRO_XOUT
   gyroData.gy = (Wire.read() << 8) | Wire.read();  // GYRO_YOUT
   gyroData.gz = (Wire.read() << 8) | Wire.read();  // GYRO_ZOUT
+}
+
+void IMU::update()
+{
+  // 1) 读取原始数据
+  readAccelData();
+  readGyroData();
+
+  // 2) 计算 dt
+  uint32_t nowUs = micros();
+  static uint32_t lastUs = 0;
+  if (lastUs == 0) {
+    lastUs = nowUs;
+    imuData.timestamp = millis();
+    imuData.valid = false;
+    return;
+  }
+  float dt = (nowUs - lastUs) * 1e-6f;
+  lastUs = nowUs;
+
+  // 防止异常 dt 影响滤波
+  if (dt <= 0.0001f || dt > 0.05f) {
+    dt = 0.005f; // 200Hz 默认值
+  }
+
+  // 3) 单位转换
+  // 你的 factor_g 对应 LSB/(deg/s)，所以除以 factor_g 得到 deg/s
+  float gx = (float)gyroData.gx / factor_g;
+  float gy = (float)gyroData.gy / factor_g;
+  float gz = (float)gyroData.gz / factor_g;
+
+  // 4) 加速度计解算倾角（单位：deg）
+  float ax = (float)accelData.ax;
+  float ay = (float)accelData.ay;
+  float az = (float)accelData.az;
+
+  float rollAcc  = atan2f(ay, az) * 57.29578f;
+  float pitchAcc = atan2f(-ax, sqrtf(ay * ay + az * az)) * 57.29578f;
+
+  // 5) 陀螺积分
+  float rollGyro  = imuData.roll  + gx * dt;
+  float pitchGyro = imuData.pitch + gy * dt;
+  float yawGyro   = imuData.yaw   + gz * dt;
+
+  // 6) 互补滤波
+  const float alpha = 0.98f;
+  imuData.roll  = alpha * rollGyro  + (1.0f - alpha) * rollAcc;
+  imuData.pitch = alpha * pitchGyro + (1.0f - alpha) * pitchAcc;
+
+  // 7) yaw 无磁力计只能纯积分，会漂移
+  imuData.yaw = yawGyro;
+
+  imuData.timestamp = millis();
+  imuData.valid = true;
+
 }

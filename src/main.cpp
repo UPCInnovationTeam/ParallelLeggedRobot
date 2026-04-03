@@ -55,12 +55,13 @@ void setup() {
     // }
 }
 void loop() {
-    imu.readAccelData();
-    imu.readGyroData();
-    Serial.printf("IMU数据: ax=%.2f ay=%.2f az=%.2f | gx=%.2f gy=%.2f gz=%.2f\n",
+    // imu.readAccelData();
+    // imu.readGyroData();
+    imu.update();
+    Serial.printf("IMU数据: ax=%d ay=%d az=%d | gx=%d gy=%d gz=%d | pitch=%f roll=%f yaw=%f\n",
                   imu.accelData.ax, imu.accelData.ay, imu.accelData.az,
-                  imu.gyroData.gx, imu.gyroData.gy, imu.gyroData.gz);
-
+                  imu.gyroData.gx, imu.gyroData.gy, imu.gyroData.gz,
+                  imu.imuData.pitch, imu.imuData.roll, imu.imuData.yaw);
     // 添加小延迟避免过度占用CPU
-    delay(100);
+    // delay(100);
 }

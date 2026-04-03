@@ -48,6 +48,8 @@ class IMU {
         // 读取原始数据
         void readAccelData();
         void readGyroData();
+
+        void update();
         AccelData_t accelData;
         GyroData_t gyroData;
         IMU_Data_t imuData;
